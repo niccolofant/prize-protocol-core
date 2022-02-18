@@ -1,0 +1,11 @@
+{
+  "dependencies": {
+    "@chainlink/contracts": "^0.4.0",
+    "@openzeppelin/contracts": "^4.5.0",
+    "@openzeppelin/test-helpers": "^0.5.15",
+    "@truffle/hdwallet-provider": "^2.0.3",
+    "dotenv": "^16.0.0",
+    "prettier-plugin-solidity": "^1.0.0-beta.19",
+    "sortition-sum-tree-factory": "^0.1.0"
+  }
+}
