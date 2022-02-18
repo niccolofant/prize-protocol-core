@@ -21,6 +21,7 @@ contract("YieldSourceInteractor", (accounts) => {
 
   before(async () => {
     yieldSourceInteractor = await YieldSourceInteractor.new(controller);
+    mintDai(yieldSourceInteractor.address);
   });
 
   describe("supplyToCompound", () => {
@@ -38,8 +39,7 @@ contract("YieldSourceInteractor", (accounts) => {
       );
     });
 
-    it("supplies tokens to Compound and mints cTokens", async () => {
-      mintDai(yieldSourceInteractor.address);
+    it("emits an event", async () => {
       const txReceipt = await yieldSourceInteractor.supplyToCompound(
         DAI_ADDRESS,
         CDAI_ADDRESS,
@@ -54,6 +54,19 @@ contract("YieldSourceInteractor", (accounts) => {
         cToken: CDAI_ADDRESS,
         amount: web3.utils.toWei("10"),
       });
+    });
+
+    it("returns 0 if the minting is successfull", async () => {
+      const mintingResult = await yieldSourceInteractor.supplyToCompound.call(
+        DAI_ADDRESS,
+        CDAI_ADDRESS,
+        web3.utils.toWei("10"),
+        {
+          from: controller,
+        }
+      );
+
+      expect(mintingResult.toString()).to.equal("0");
     });
   });
 
