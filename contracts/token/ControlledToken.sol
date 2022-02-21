@@ -23,8 +23,8 @@ contract ControlledToken is Controller, ERC20 {
    * @param _user The address to mint tokens to
    * @param _amount The amount of tokens to mint
    */
-  function _controlledMint(address _user, uint256 _amount)
-    internal
+  function controlledMint(address _user, uint256 _amount)
+    external
     onlyController
   {
     _mint(_user, _amount);
@@ -36,8 +36,8 @@ contract ControlledToken is Controller, ERC20 {
    * @param _user The address to burn tokens from
    * @param _amount The amount of tokens to burn
    */
-  function _controlledBurn(address _user, uint256 _amount)
-    internal
+  function controlledBurn(address _user, uint256 _amount)
+    external
     onlyController
   {
     _burn(_user, _amount);

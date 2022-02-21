@@ -18,7 +18,7 @@ interface IYieldSourceInteractor {
     uint256 tokenAmount
   );
 
-  function supplyToCompound(
+  function _supplyToCompound(
     address _token,
     address _cToken,
     uint256 _amount

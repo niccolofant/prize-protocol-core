@@ -4,10 +4,9 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../interfaces/ICToken.sol";
-import "../interfaces/IYieldSourceInteractor.sol";
 import "../utils/Controller.sol";
 
-contract YieldSourceInteractor is IYieldSourceInteractor, Controller {
+contract YieldSourceInteractor is Controller {
   event SuppliedToCompound(
     address indexed token,
     address indexed cToken,
@@ -28,11 +27,11 @@ contract YieldSourceInteractor is IYieldSourceInteractor, Controller {
    * @param _amount The amount of tokens supplied
    * @return 0 on success, otherwise an Error code
    */
-  function supplyToCompound(
+  function _supplyToCompound(
     address _token,
     address _cToken,
     uint256 _amount
-  ) external override onlyController returns (uint256) {
+  ) internal onlyController returns (uint256) {
     IERC20 token = IERC20(_token);
     ICToken cToken = ICToken(_cToken);
 
@@ -51,9 +50,8 @@ contract YieldSourceInteractor is IYieldSourceInteractor, Controller {
    * @param _cTokenAmount The number of cTokens to be redeemed
    * @return 0 on success, otherwise an Error code
    */
-  function redeemFromCompound(address _cToken, uint256 _cTokenAmount)
-    external
-    override
+  function _redeemFromCompound(address _cToken, uint256 _cTokenAmount)
+    internal
     onlyController
     returns (uint256)
   {
@@ -73,9 +71,8 @@ contract YieldSourceInteractor is IYieldSourceInteractor, Controller {
    * @param _tokenAmount The amount of underlying to be redeemed
    * @return 0 on success, otherwise an Error code
    */
-  function redeemUnderlyingFromCompound(address _cToken, uint256 _tokenAmount)
-    external
-    override
+  function _redeemUnderlyingFromCompound(address _cToken, uint256 _tokenAmount)
+    internal
     onlyController
     returns (uint256)
   {
@@ -96,8 +93,7 @@ contract YieldSourceInteractor is IYieldSourceInteractor, Controller {
    * @return The amount of underlying currently owned by this contract.
    */
   function balanceOfUnderlyingCompound(address _cToken)
-    external
-    override
+    public
     returns (uint256)
   {
     ICToken cToken = ICToken(_cToken);
@@ -110,8 +106,7 @@ contract YieldSourceInteractor is IYieldSourceInteractor, Controller {
    * @return The current supply rate as an unsigned integer, scaled by 1e18.
    */
   function supplyRatePerBlockCompound(address _cToken)
-    external
-    override
+    public
     returns (uint256)
   {
     ICToken cToken = ICToken(_cToken);
@@ -124,11 +119,7 @@ contract YieldSourceInteractor is IYieldSourceInteractor, Controller {
    * @return The current exchange rate as an unsigned integer,
    * scaled by 1 * 10^(18 - 8 + Underlying Token Decimals)
    */
-  function exchangeRateCompound(address _cToken)
-    external
-    override
-    returns (uint256)
-  {
+  function exchangeRateCompound(address _cToken) public returns (uint256) {
     ICToken cToken = ICToken(_cToken);
     return cToken.exchangeRateCurrent();
   }
