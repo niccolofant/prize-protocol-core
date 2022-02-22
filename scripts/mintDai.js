@@ -12,7 +12,7 @@ const daiMcdJoin = "0x9759A6Ac90977b93B58547b4A71c78317f391A28";
 module.exports = function (account) {
   let daiContract = new web3.eth.Contract(DAI_ABI, daiMainNetAddress);
 
-  // 1000 DAI
+  // 500 DAI
   const numbDaiToMint = web3.utils.toWei("500", "ether");
 
   return daiContract.methods
