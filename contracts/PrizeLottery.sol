@@ -16,6 +16,8 @@ contract PrizeLottery is Controller, Ownable, YieldSourceInteractor {
 
   event LotteryStarted(uint256 lotteryId, IERC20 token, ICToken cToken);
 
+  event StateChanged(uint256 lotteryId, State oldState, State newState);
+
   event Winner(uint256 lotteryId, address user, uint256 amount);
 
   string public constant NAME = "Prize Lottery V1";
@@ -30,7 +32,7 @@ contract PrizeLottery is Controller, Ownable, YieldSourceInteractor {
     CLOSED
   }
 
-  Counters.Counter internal _lotteryId;
+  Counters.Counter public lotteryId;
 
   State public state;
 
@@ -48,13 +50,14 @@ contract PrizeLottery is Controller, Ownable, YieldSourceInteractor {
   constructor(
     address _ticket,
     address _token,
-    address _cToken,
-    address _vrfConsumer
+    address _cToken
   ) YieldSourceInteractor(address(this)) {
     ticket = Ticket(_ticket);
     token = IERC20(_token);
     cToken = ICToken(_cToken);
-    vrfConsumer = VRFConsumerV2(_vrfConsumer);
+    /*vrfConsumer = VRFConsumerV2(_vrfConsumer);*/
+
+    state = State.CLOSED;
 
     _initialize();
   }
@@ -75,13 +78,12 @@ contract PrizeLottery is Controller, Ownable, YieldSourceInteractor {
     }
 
     lotteryStart = block.timestamp;
-    lotteryEnd = lotteryStart + DRAWING_PERIOD;
 
-    _lotteryId.increment();
+    lotteryId.increment();
 
     state = State.OPEN;
 
-    emit LotteryStarted(_lotteryId.current(), token, cToken);
+    emit LotteryStarted(lotteryId.current(), token, cToken);
   }
 
   /**
@@ -100,7 +102,10 @@ contract PrizeLottery is Controller, Ownable, YieldSourceInteractor {
       "PrizeLottery: REQUIRE_STATE_OPEN"
     );
 
-    require(_amount >= MINIMUM_DEPOSIT, "PrizeLottery: INSUFFICIENT_DEPOSIT");
+    require(
+      _amount >= MINIMUM_DEPOSIT,
+      "PrizeLottery: INSUFFICIENT_DEPOSIT_AMOUNT"
+    );
 
     IERC20(token).transferFrom(_msgSender(), address(this), _amount);
 
@@ -164,7 +169,7 @@ contract PrizeLottery is Controller, Ownable, YieldSourceInteractor {
 
     ticket.controlledMint(winner, prize);
 
-    emit Winner(_lotteryId.current(), winner, prize);
+    emit Winner(lotteryId.current(), winner, prize);
   }
 
   function prizePool() public returns (uint256) {
@@ -176,5 +181,13 @@ contract PrizeLottery is Controller, Ownable, YieldSourceInteractor {
     require(prize >= 0);
 
     return prize;
+  }
+
+  function changeState(State _state) external onlyOwner {
+    if (_state == state) return;
+    State oldState = state;
+    state = _state;
+
+    emit StateChanged(lotteryId.current(), oldState, state);
   }
 }
