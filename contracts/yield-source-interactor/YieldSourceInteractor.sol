@@ -31,7 +31,7 @@ contract YieldSourceInteractor is Controller {
     address _token,
     address _cToken,
     uint256 _amount
-  ) internal onlyController returns (uint256) {
+  ) internal returns (uint256) {
     IERC20 token = IERC20(_token);
     ICToken cToken = ICToken(_cToken);
 
@@ -52,7 +52,6 @@ contract YieldSourceInteractor is Controller {
    */
   function _redeemFromCompound(address _cToken, uint256 _cTokenAmount)
     internal
-    onlyController
     returns (uint256)
   {
     ICToken cToken = ICToken(_cToken);
@@ -73,7 +72,6 @@ contract YieldSourceInteractor is Controller {
    */
   function _redeemUnderlyingFromCompound(address _cToken, uint256 _tokenAmount)
     internal
-    onlyController
     returns (uint256)
   {
     ICToken cToken = ICToken(_cToken);
