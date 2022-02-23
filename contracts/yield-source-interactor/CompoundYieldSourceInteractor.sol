@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../interfaces/ICToken.sol";
 import "../utils/Controller.sol";
 
-contract YieldSourceInteractor is Controller {
+contract CompoundYieldSourceInteractor is Controller {
   event SuppliedToCompound(
     address indexed token,
     address indexed cToken,

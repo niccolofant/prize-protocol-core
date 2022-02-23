@@ -9,16 +9,28 @@ import "./interfaces/ICToken.sol";
 import "./utils/Controller.sol";
 import "./randomness/VRFConsumerV2.sol";
 import "./token/Ticket.sol";
-import "./yield-source-interactor/YieldSourceInteractor.sol";
+import "./yield-source-interactor/CompoundYieldSourceInteractor.sol";
 
-contract PrizeLottery is Controller, Ownable, YieldSourceInteractor {
+contract PrizeLottery is Controller, Ownable, CompoundYieldSourceInteractor {
   using Counters for Counters.Counter;
 
-  event LotteryStarted(uint256 lotteryId, IERC20 token, ICToken cToken);
-
-  event StateChanged(uint256 lotteryId, State oldState, State newState);
-
-  event Winner(uint256 lotteryId, address user, uint256 amount);
+  event LotteryStarted(uint256 indexed lotteryId, IERC20 token, ICToken cToken);
+  event PlayerDeposited(
+    uint256 indexed lotteryId,
+    address indexed player,
+    uint256 amount
+  );
+  event UnderlyingAssetRedeemed(
+    uint256 indexed lotteryId,
+    address indexed player,
+    uint256 amount
+  );
+  event StateChanged(uint256 indexed lotteryId, State oldState, State newState);
+  event Winner(
+    uint256 indexed lotteryId,
+    address indexed player,
+    uint256 amount
+  );
 
   string public constant NAME = "Prize Lottery V1";
 
@@ -51,7 +63,7 @@ contract PrizeLottery is Controller, Ownable, YieldSourceInteractor {
     address _ticket,
     address _token,
     address _cToken
-  ) YieldSourceInteractor(address(this)) {
+  ) CompoundYieldSourceInteractor(address(this)) {
     ticket = Ticket(_ticket);
     token = IERC20(_token);
     cToken = ICToken(_cToken);
@@ -116,6 +128,8 @@ contract PrizeLottery is Controller, Ownable, YieldSourceInteractor {
 
     ticket.controlledMint(_msgSender(), _amount);
 
+    emit PlayerDeposited(lotteryId.current(), _msgSender(), _amount);
+
     return (
       bytes32(uint256(uint160(_msgSender()))),
       ticket.stakeOf(_msgSender())
@@ -135,7 +149,7 @@ contract PrizeLottery is Controller, Ownable, YieldSourceInteractor {
   {
     require(
       _tokenAmount <= ticket.stakeOf(_msgSender()),
-      "PrizeLottery: INSUFFICIENT_FUNDS"
+      "PrizeLottery: INSUFFICIENT_FUNDS_TO_REDEEM"
     );
 
     ticket.controlledBurn(_msgSender(), _tokenAmount);
@@ -146,6 +160,12 @@ contract PrizeLottery is Controller, Ownable, YieldSourceInteractor {
     );
 
     token.transfer(_msgSender(), _tokenAmount);
+
+    emit UnderlyingAssetRedeemed(
+      lotteryId.current(),
+      _msgSender(),
+      _tokenAmount
+    );
 
     return (
       bytes32(uint256(uint160(_msgSender()))),
@@ -159,26 +179,32 @@ contract PrizeLottery is Controller, Ownable, YieldSourceInteractor {
       "PrizeLottery: CANNOT_DRAW_YET"
     );
 
-    lotteryEnd = block.timestamp;
-
     state = State.AWARDING_WINNER;
 
     address winner = ticket.draw(_randomNumber);
 
-    uint256 prize = prizePool();
+    if (winner == address(0)) return;
 
+    lotteryEnd = block.timestamp;
+    uint256 prize = prizePool();
     ticket.controlledMint(winner, prize);
 
     emit Winner(lotteryId.current(), winner, prize);
   }
 
+  /**
+   * @notice Utility function used to retrieve the current prize pool
+   * @return The current prize pool
+   */
   function prizePool() public returns (uint256) {
     uint256 depositedAmount = ticket.totalSupply();
     uint256 totalAmount = balanceOfUnderlyingCompound(address(cToken));
 
-    uint256 prize = totalAmount - depositedAmount;
-
-    require(prize >= 0);
+    // When an amount is first supplied to the yield protocol, the amount
+    // of underlying asset is slightly less than the amount supplied.
+    uint256 prize = (totalAmount < depositedAmount)
+      ? type(uint256).min
+      : (totalAmount - depositedAmount);
 
     return prize;
   }
