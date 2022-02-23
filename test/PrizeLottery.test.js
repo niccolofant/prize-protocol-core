@@ -35,8 +35,8 @@ contract("PrizeLottery", (accounts) => {
       ticket = await Ticket.new(TICKET_NAME, TICKET_SYMBOL, OWNER);
       prizeLottery = await PrizeLottery.new(
         ticket.address,
-        TOKENS_ADDRESS.dai,
-        TOKENS_ADDRESS.cDai
+        DAI_ADDRESS,
+        CDAI_ADDRESS
       );
       latestTimestamp = await time.latest();
       await ticket.transferControllerRole(prizeLottery.address, {
@@ -96,11 +96,15 @@ contract("PrizeLottery", (accounts) => {
     */
   });
 
-  describe("#deposit", () => {
+  describe("#deposit", async () => {
     let prizeLottery;
     let ticket;
+    const player1 = accounts[1];
 
-    before(async () => {
+    // Mints 500 DAI to the player1 address
+    mintDai(player1);
+
+    beforeEach(async () => {
       ticket = await Ticket.new(TICKET_NAME, TICKET_SYMBOL, OWNER);
       prizeLottery = await PrizeLottery.new(
         ticket.address,
@@ -112,13 +116,14 @@ contract("PrizeLottery", (accounts) => {
       });
     });
 
-    it("reverts if state isn't OPEN", async () => {
+    it("reverts if the state isn't OPEN", async () => {
       // State.CLOSED
       await prizeLottery.changeState("2");
       await expectRevert(
         prizeLottery.deposit(web3.utils.toWei("0")),
         "PrizeLottery: REQUIRE_STATE_OPEN"
       );
+
       // State.AWARDING_WINNER
       await prizeLottery.changeState("1");
       await expectRevert(
@@ -127,10 +132,106 @@ contract("PrizeLottery", (accounts) => {
       );
     });
 
-    it("reverts if the player deposit insufficient tokens", async () => {
+    it("reverts if the player deposits insufficient token amount", async () => {
       const MINIMUM_DEPOSIT = await prizeLottery.MINIMUM_DEPOSIT();
-      const depositAmount = web3.utils.toWei("0.1");
-      expect(depositAmount.toFixed()).to.be.below(MINIMUM_DEPOSIT.toFixed());
+      const DEPOSIT_AMOUNT = web3.utils.toWei("0.1");
+      expect(parseInt(DEPOSIT_AMOUNT)).to.be.below(
+        parseInt(MINIMUM_DEPOSIT.toString())
+      );
+      await expectRevert(
+        prizeLottery.deposit(DEPOSIT_AMOUNT),
+        "PrizeLottery: INSUFFICIENT_DEPOSIT_AMOUNT"
+      );
+    });
+
+    it("transfer the deposited amount into the yield protocol (Compound)", async () => {
+      const DEPOSIT_AMOUNT = web3.utils.toWei("1");
+
+      // Approve the token transfer from player1 to the lottery contract
+      await DAI.methods.approve(prizeLottery.address, DEPOSIT_AMOUNT).send({
+        from: player1,
+      });
+
+      // Check allowance
+      const lotteryAllowance = await DAI.methods
+        .allowance(player1, prizeLottery.address)
+        .call();
+      expect(lotteryAllowance.toString()).to.equal(DEPOSIT_AMOUNT);
+
+      await prizeLottery.deposit(DEPOSIT_AMOUNT, { from: player1 });
+
+      // Check lottery balance
+      const prizeLotteryDaiBalance = await DAI.methods
+        .balanceOf(prizeLottery.address)
+        .call();
+      expect(prizeLotteryDaiBalance.toString()).to.equal(web3.utils.toWei("0"));
+
+      // Check Compound balance for the lottery contract
+      const compoundLotteryBalance =
+        await prizeLottery.balanceOfUnderlyingCompound.call(CDAI_ADDRESS);
+      expect(parseInt(compoundLotteryBalance.toString())).to.be.above(
+        parseInt(web3.utils.toWei("0.9999999"))
+      );
+    });
+
+    it("mints a number of tickets equal to the amount of tokens deposited by the player", async () => {
+      const DEPOSIT_AMOUNT = web3.utils.toWei("1");
+
+      // Approve the token transfer from player1 to the lottery contract
+      await DAI.methods.approve(prizeLottery.address, DEPOSIT_AMOUNT).send({
+        from: player1,
+      });
+
+      await prizeLottery.deposit(DEPOSIT_AMOUNT, {
+        from: player1,
+      });
+
+      // Checks tickets
+      const stakeOfPlayer1 = await ticket.stakeOf.call(player1);
+      expect(stakeOfPlayer1.toString()).to.equal(DEPOSIT_AMOUNT);
+    });
+  });
+
+  describe("#prizePool", () => {
+    let prizeLottery;
+    let ticket;
+    const player1 = accounts[1];
+
+    // Mints 500 DAI to the player1 and player2
+    mintDai(player1);
+
+    beforeEach(async () => {
+      ticket = await Ticket.new(TICKET_NAME, TICKET_SYMBOL, OWNER);
+      prizeLottery = await PrizeLottery.new(
+        ticket.address,
+        TOKENS_ADDRESS.dai,
+        TOKENS_ADDRESS.cDai
+      );
+      await ticket.transferControllerRole(prizeLottery.address, {
+        from: OWNER,
+      });
+    });
+
+    it("returns the earned interest of the deposited amount", async () => {
+      const DEPOSIT_AMOUNT = web3.utils.toWei("500");
+
+      // Approve the token transfer from player1 to the lottery contract
+      await DAI.methods.approve(prizeLottery.address, DEPOSIT_AMOUNT).send({
+        from: player1,
+      });
+
+      await prizeLottery.deposit(DEPOSIT_AMOUNT, {
+        from: player1,
+      });
+
+      // increase time by 5000 secs
+      // await time.increase(5000);
+
+      // in those 5000 secs the amount deposited should
+      // have earned a bit of interest
+      const prizePool = await prizeLottery.prizePool.call();
+
+      console.log(web3.utils.fromWei(prizePool));
     });
   });
 });
