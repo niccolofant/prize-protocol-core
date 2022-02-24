@@ -58,8 +58,6 @@ contract CompoundPrizeLotteryTest is
   IERC20 public token;
   ICToken public cToken;
 
-  VRFConsumerV2 internal vrfConsumer;
-
   constructor(
     address _ticket,
     address _token,
