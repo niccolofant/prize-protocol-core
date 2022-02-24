@@ -369,49 +369,6 @@ contract("PrizeLottery", (accounts) => {
       );
     });
 
-    /*
-    it("sets the state to AWARDING_WINNER and emits a `LotteryWinnerRequested` event", async () => {
-      // state should be Open
-      let state = await prizeLottery.state();
-      expect(state.toString()).to.equal("0");
-
-      // enough time should have passed
-      const LOTTERY_LENGTH = 1000; // 1000 secs
-      await time.increase(LOTTERY_LENGTH);
-      const currentTimestamp = await time.latest();
-      expect(
-        parseInt(currentTimestamp.toString()) -
-          parseInt(lotteryStartTimestamp.toString())
-      ).to.be.above(LOTTERY_LENGTH);
-
-      // lottery should not be empty
-      const DEPOSIT_AMOUNT = web3.utils.toWei("1");
-      await DAI.methods.approve(prizeLottery.address, DEPOSIT_AMOUNT).send({
-        from: player1,
-      });
-      await prizeLottery.deposit(DEPOSIT_AMOUNT, {
-        from: player1,
-      });
-      const isLotteryEmpty = await prizeLottery.isLotteryEmpty();
-      expect(isLotteryEmpty).to.be.false;
-
-      // check upkeep
-      const checkUpkeepResult = await prizeLottery.checkUpkeep("0x");
-      const { upkeepNeeded } = checkUpkeepResult;
-      expect(upkeepNeeded).to.be.true;
-
-      const RANDOM_NUMBER = "135432";
-      const drawReceipt = await prizeLottery._draw(RANDOM_NUMBER);
-
-      // state should be AWARDING_WINNER
-      state = await prizeLottery.state();
-      expect(state.toString()).to.equal("1");
-
-      // should emit a `LotteryWinnerRequested` event
-      expectEvent(drawReceipt, "LotteryWinnerRequested");
-    });
-    */
-
     it("sets the lottery end timestamp to the current block timestamp", async () => {
       // state should be Open
       let state = await prizeLottery.state();
@@ -724,6 +681,49 @@ contract("PrizeLottery", (accounts) => {
         "PrizeLottery: UPKEEP_NOT_NEEDED"
       );
     });
+
+    /*
+    it("sets the state to AWARDING_WINNER and emits a `LotteryWinnerRequested` event", async () => {
+      // state should be Open
+      let state = await prizeLottery.state();
+      expect(state.toString()).to.equal("0");
+
+      // enough time should have passed
+      const LOTTERY_LENGTH = 1000; // 1000 secs
+      await time.increase(LOTTERY_LENGTH);
+      const currentTimestamp = await time.latest();
+      expect(
+        parseInt(currentTimestamp.toString()) -
+          parseInt(lotteryStartTimestamp.toString())
+      ).to.be.above(LOTTERY_LENGTH);
+
+      // lottery should not be empty
+      const DEPOSIT_AMOUNT = web3.utils.toWei("1");
+      await DAI.methods.approve(prizeLottery.address, DEPOSIT_AMOUNT).send({
+        from: player1,
+      });
+      await prizeLottery.deposit(DEPOSIT_AMOUNT, {
+        from: player1,
+      });
+      const isLotteryEmpty = await prizeLottery.isLotteryEmpty();
+      expect(isLotteryEmpty).to.be.false;
+
+      // check upkeep
+      const checkUpkeepResult = await prizeLottery.checkUpkeep("0x");
+      const { upkeepNeeded } = checkUpkeepResult;
+      expect(upkeepNeeded).to.be.true;
+
+      const RANDOM_NUMBER = "135432";
+      const drawReceipt = await prizeLottery._draw(RANDOM_NUMBER);
+
+      // state should be AWARDING_WINNER
+      state = await prizeLottery.state();
+      expect(state.toString()).to.equal("1");
+
+      // should emit a `LotteryWinnerRequested` event
+      expectEvent(drawReceipt, "LotteryWinnerRequested");
+    });
+    */
   });
 
   describe("#prizePool", () => {
