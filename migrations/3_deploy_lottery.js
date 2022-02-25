@@ -1,4 +1,4 @@
-const PrizeLottery = artifacts.require("PrizeLottery");
+const CompoundPrizeLottery = artifacts.require("CompoundPrizeLottery");
 const Ticket = artifacts.require("Ticket");
 
 const ERC20_ADDRESSES = require("../utils/erc20Tokens.json");
@@ -13,7 +13,7 @@ module.exports = async function (deployer, network) {
   const NAME = "Prize Lottery USDT";
 
   deployer.deploy(
-    PrizeLottery,
+    CompoundPrizeLottery,
     NAME,
     Ticket.address,
     ERC20_NETWORK_ADDRESSES.usdt,

@@ -1,4 +1,4 @@
-const PrizeLottery = artifacts.require("CompoundPrizeLotteryTest");
+const CompoundPrizeLottery = artifacts.require("CompoundPrizeLottery");
 const Ticket = artifacts.require("Ticket");
 
 const IERC20 = require("../build/IERC20.json");
@@ -20,7 +20,7 @@ module.exports = async (callback) => {
   const CDAI_ADDRESS = TOKENS_ADDRESS.cDai;
 
   const ticket = await Ticket.new(TICKET_NAME, TICKET_SYMBOL, OWNER);
-  const prizeLottery = await PrizeLottery.new(
+  const prizeLottery = await CompoundPrizeLottery.new(
     ticket.address,
     DAI_ADDRESS,
     CDAI_ADDRESS

@@ -28,7 +28,7 @@ import "./utils/Controller.sol";
 import "./token/Ticket.sol";
 import "./yield-source-interactor/CompoundYieldSourceInteractor.sol";
 
-contract PrizeLottery is
+contract CompoundPrizeLottery is
   Controller,
   Ownable,
   CompoundYieldSourceInteractor,
