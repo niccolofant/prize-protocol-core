@@ -8,7 +8,6 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/KeeperCompatibleInterface.sol";
 import "../interfaces/ICToken.sol";
 import "../utils/Controller.sol";
-import "../randomness/VRFConsumerV2.sol";
 import "../token/Ticket.sol";
 import "../yield-source-interactor/CompoundYieldSourceInteractor.sol";
 

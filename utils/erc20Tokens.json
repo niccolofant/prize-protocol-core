@@ -2,5 +2,13 @@
   "mainnet": {
     "dai": "0x6b175474e89094c44da98b954eedeac495271d0f",
     "cDai": "0x5d3a536e4d6dbd6114cc1ead35777bab948e3643"
+  },
+  "rinkeby": {
+    "dai": "0x5592EC0cfb4dbc12D3aB100b257153436a1f0FEa",
+    "cDai": "0x6D7F0754FFeb405d23C51CE938289d4835bE3b14",
+    "usdc": "0x4DBCdF9B62e891a7cec5A2568C3F4FAF9E8Abe2b",
+    "cUsdc": "0x5B281A6DdA0B271e91ae35DE655Ad301C976edb1",
+    "usdt": "0xD9BA894E0097f8cC2BBc9D24D308b98e36dc6D02",
+    "cUsdt": "0x2fB298BDbeF468638AD6653FF8376575ea41e768"
   }
 }

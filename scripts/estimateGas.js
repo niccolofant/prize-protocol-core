@@ -2,10 +2,7 @@ const PrizeLottery = artifacts.require("CompoundPrizeLotteryTest");
 const Ticket = artifacts.require("Ticket");
 
 const IERC20 = require("../build/IERC20.json");
-const ICToken = require("../build/ICToken.json");
-
 const TokensAddress = require("../utils/erc20Tokens.json");
-
 const mintDai = require("./mintDai");
 
 module.exports = async (callback) => {
@@ -21,7 +18,6 @@ module.exports = async (callback) => {
   const DAI = new web3.eth.Contract(IERC20.abi, DAI_ADDRESS);
 
   const CDAI_ADDRESS = TOKENS_ADDRESS.cDai;
-  const CDAI = new web3.eth.Contract(ICToken.abi, CDAI_ADDRESS);
 
   const ticket = await Ticket.new(TICKET_NAME, TICKET_SYMBOL, OWNER);
   const prizeLottery = await PrizeLottery.new(

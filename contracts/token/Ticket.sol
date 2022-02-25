@@ -9,8 +9,8 @@ import "../interfaces/ITicket.sol";
 contract Ticket is ITicket, ControlledToken {
   using SortitionSumTreeFactory for SortitionSumTreeFactory.SortitionSumTrees;
 
-  bytes32 private constant TREE_KEY = keccak256("PryzeProtocol");
   uint256 private constant MAX_TREE_LEAVES = 5;
+  bytes32 private treeKey;
 
   SortitionSumTreeFactory.SortitionSumTrees internal sortitionSumTrees;
 
@@ -26,7 +26,8 @@ contract Ticket is ITicket, ControlledToken {
     address _controller
   ) ControlledToken(_name, _symbol, _controller) {
     require(_controller != address(0), "Ticket: CONTROLLER_NOT_ZERO");
-    sortitionSumTrees.createTree(TREE_KEY, MAX_TREE_LEAVES);
+    treeKey = keccak256(abi.encodePacked(_name));
+    sortitionSumTrees.createTree(treeKey, MAX_TREE_LEAVES);
   }
 
   /**
@@ -35,8 +36,7 @@ contract Ticket is ITicket, ControlledToken {
    * @return The amount of token owned by the `user`
    */
   function stakeOf(address _user) external view override returns (uint256) {
-    return
-      sortitionSumTrees.stakeOf(TREE_KEY, bytes32(uint256(uint160(_user))));
+    return sortitionSumTrees.stakeOf(treeKey, bytes32(uint256(uint160(_user))));
   }
 
   /**
@@ -52,7 +52,7 @@ contract Ticket is ITicket, ControlledToken {
       selected = address(0);
     } else {
       selected = address(
-        uint160(uint256(sortitionSumTrees.draw(TREE_KEY, _number)))
+        uint160(uint256(sortitionSumTrees.draw(treeKey, _number)))
       );
     }
     return selected;
@@ -72,7 +72,7 @@ contract Ticket is ITicket, ControlledToken {
     if (_from != address(0)) {
       uint256 fromBalance = balanceOf(_from) - _amount;
       sortitionSumTrees.set(
-        TREE_KEY,
+        treeKey,
         fromBalance,
         bytes32(uint256(uint160(_from)))
       );
@@ -80,11 +80,7 @@ contract Ticket is ITicket, ControlledToken {
 
     if (_to != address(0)) {
       uint256 toBalance = balanceOf(_to) + _amount;
-      sortitionSumTrees.set(
-        TREE_KEY,
-        toBalance,
-        bytes32(uint256(uint160(_to)))
-      );
+      sortitionSumTrees.set(treeKey, toBalance, bytes32(uint256(uint160(_to))));
     }
   }
 }
