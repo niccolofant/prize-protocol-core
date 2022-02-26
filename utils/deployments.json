@@ -1,0 +1,7 @@
+{
+  "rinkeby": {
+    "token": "0x0Eb10d37cc09a7055Dc8f2C57673eaC2D01b4EE7",
+    "usdtCompoundTicket": "0xA579c7776DF93a46a28423042A5CA826Cc04CccD",
+    "usdtCompoundLottery": "0xb0E5aEa54C20A44aa1272759ee3A7fA2E0fd656B"
+  }
+}
