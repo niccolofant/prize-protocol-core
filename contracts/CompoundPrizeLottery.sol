@@ -1,7 +1,5 @@
 //SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.0;
-
 /*                                                                
 _________   _...._              .--.                __.....__      
 \        |.'      '-.           |__|            .-''         '.    
@@ -15,6 +13,8 @@ _________   _...._              .--.                __.....__
 '-----------'           |_|         |         |                    
                                     |_________|                    
 */
+
+pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -37,10 +37,6 @@ contract CompoundPrizeLottery is
 {
   using Counters for Counters.Counter;
 
-  /* Lottery parameters */
-  uint256 public constant DRAWING_PERIOD = 10 days;
-  uint256 public constant MINIMUM_DEPOSIT = 1e18; // 1
-
   enum State {
     OPEN,
     AWARDING_WINNER,
@@ -48,11 +44,14 @@ contract CompoundPrizeLottery is
   }
 
   /* Lottery parameters */
+  uint256 public constant DRAWING_PERIOD = 10 days;
+  uint256 public constant MINIMUM_DEPOSIT = 1e18; // 1
+
+  /* Lottery parameters */
   string public name;
   Counters.Counter public lotteryId;
   State public state;
-  uint256 public lotteryStart;
-  uint256 public lotteryEnd;
+  uint256 public latestLotteryTimestamp;
 
   /* Tokens */
   Ticket internal ticket;
@@ -70,7 +69,12 @@ contract CompoundPrizeLottery is
   bytes32 internal immutable keyHash;
 
   /* Events */
-  event LotteryStarted(uint256 indexed lotteryId, IERC20 token, ICToken cToken);
+  event LotteryStarted(
+    uint256 indexed lotteryId,
+    uint256 lotteryStart,
+    IERC20 token,
+    ICToken cToken
+  );
   event PlayerDeposited(
     uint256 indexed lotteryId,
     address indexed player,
@@ -89,10 +93,22 @@ contract CompoundPrizeLottery is
   event LotteryWinnerAwarded(
     uint256 indexed lotteryId,
     address indexed player,
+    uint256 lotteryEnd,
     uint256 amount
   );
   event StateChanged(uint256 indexed lotteryId, State oldState, State newState);
 
+  /**
+   * @notice Create a new lottery contract, sets the parameters informations
+   * and calls the `_initialize` function used to initialize a new lottery run.
+   * @param _name The name of the lottery
+   * @param _ticket The address of the corresponding ticket contract
+   * @param _token The address of the token used to play
+   * @param _cToken The address of the yield protocol token that earns interest
+   * @param _subscriptionId The subscription ID used for Chainlink VRF
+   * @param _vrfCoordinator The address of the VRF Coordinator
+   * @param _keyHash The key hash
+   */
   constructor(
     string memory _name,
     address _ticket,
@@ -118,6 +134,11 @@ contract CompoundPrizeLottery is
     _initialize();
   }
 
+  /**
+   * @notice Function that creates a new lottery run and it transfers any
+   * reserve available into the yield protocol in order to enlarge the
+   * prize pool.
+   */
   function _initialize() internal {
     require(
       keccak256(abi.encodePacked(state)) !=
@@ -134,19 +155,23 @@ contract CompoundPrizeLottery is
       );
     }
 
-    lotteryStart = block.timestamp;
-    lotteryEnd = 0;
+    latestLotteryTimestamp = block.timestamp;
     lotteryId.increment();
     state = State.OPEN;
 
-    emit LotteryStarted(lotteryId.current(), token, cToken);
+    emit LotteryStarted(
+      lotteryId.current(),
+      latestLotteryTimestamp,
+      token,
+      cToken
+    );
   }
 
   /**
    * @notice Allows the msg.sender to deposit tokens and join the lottery
    * for the chance of winning. The amount of tokens deposited is transferred
-   * into a yield protocol (Compound) and a corresponding number of tickets
-   * is minted for the msg.sender. (1 ticket for each token deposited)
+   * into a yield protocol and a corresponding number of tickets
+   * is minted for the msg.sender.
    * @param _amount The amount of tokens deposited
    * @return The ID of the user (msg.sender) and the amount of tickets he has
    * on that moment
@@ -182,7 +207,8 @@ contract CompoundPrizeLottery is
 
   /**
    * @notice Allow the msg.sender to converts cTokens into a specified
-   * quantity of the underlying asset, and returns them to the msg.sender
+   * quantity of the underlying asset, and returns them to the msg.sender.
+   * An equal amount of tickets is also burned.
    * @param _tokenAmount The amount of underlying to be redeemed
    * @return The amount of tickets the caller has
    */
@@ -258,11 +284,16 @@ contract CompoundPrizeLottery is
 
     require(isPickValid(pickedWinner), "PrizeLottery: PICK_NOT_VALID");
 
-    lotteryEnd = block.timestamp;
+    uint256 lotteryEnd = block.timestamp;
     uint256 prize = prizePool();
     ticket.controlledMint(pickedWinner, prize);
 
-    emit LotteryWinnerAwarded(lotteryId.current(), pickedWinner, prize);
+    emit LotteryWinnerAwarded(
+      lotteryId.current(),
+      pickedWinner,
+      lotteryEnd,
+      prize
+    );
   }
 
   /**
@@ -286,15 +317,16 @@ contract CompoundPrizeLottery is
     )
   {
     bool isOpen = State.OPEN == state;
-    bool timePassed = ((block.timestamp - lotteryStart) >= DRAWING_PERIOD);
+    bool timePassed = ((block.timestamp - latestLotteryTimestamp) >=
+      DRAWING_PERIOD);
 
     upkeepNeeded = (timePassed && isOpen && !isLotteryEmpty());
   }
 
   /**
-   * @notice Once `checkUpkeep` is returning `true`, this function is called
-   * and it kicks off a Chainlink VRF call to get a random winner.
-   * ADD VRF AND MOVE `_DRAW` AND `_INTIALIZE` INSIDE THE CALLBACK FUNCTION
+   * @notice Once `checkUpkeep` is returning `true`, this function is called,
+   * it starts the awarding winner process and kicks off a Chainlink VRF
+   * call to get a random winner.
    */
   function performUpkeep(
     bytes calldata /* performData */
@@ -309,7 +341,7 @@ contract CompoundPrizeLottery is
   }
 
   /**
-   * @notice Utility function used to retrieve the current prize pool
+   * @notice Utility function used to retrieve the current prize pool.
    * @return The current prize pool
    */
   function prizePool() public returns (uint256) {
@@ -336,10 +368,10 @@ contract CompoundPrizeLottery is
   }
 
   /**
-   * @notice Utility function that checks if the a certain address picked is valid.
+   * @notice Utility function that checks if a certain address picked is valid.
    * To be valid it needs to:
    * 1. Not be the zero address
-   * 2. be an address of a played that deposited and joined the lottery
+   * 2. Be an address of a played that deposited and joined the lottery
    * @param _playerPicked The address that needs to be checked
    * @return True if the address is valid, otherwise False
    */

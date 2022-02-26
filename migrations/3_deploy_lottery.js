@@ -10,7 +10,7 @@ module.exports = async function (deployer, network) {
   const ERC20_NETWORK_ADDRESSES = ERC20_ADDRESSES[network];
   const CHAINLINK_NETWORK = CHAINLINK[network];
 
-  const NAME = "Prize Lottery USDT";
+  const NAME = "Prize Lottery USDT Compound";
 
   deployer.deploy(
     CompoundPrizeLottery,
