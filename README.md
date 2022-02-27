@@ -1,2 +1,2 @@
-# pryze-core
- Contracts for the Pryze lottery protocol
+# Prize Protocol V1 Core 
+ Contracts for the Prize protocol
