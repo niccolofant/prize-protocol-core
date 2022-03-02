@@ -21,12 +21,6 @@ module.exports = function (account) {
       from: daiMcdJoin,
       gasPrice: web3.utils.toHex(0),
     })
-    .then(() => {
-      return daiContract.methods.balanceOf(account).call();
-    })
-    .then((balanceOf) => {
-      const dai = balanceOf / 1e18;
-    })
     .catch((err) => {
       console.error(err);
     });
