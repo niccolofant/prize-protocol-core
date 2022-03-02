@@ -75,6 +75,7 @@ contract CompoundPrizeLottery is
     IERC20 token,
     ICToken cToken
   );
+  event ReserveSupplied(uint256 indexed lotteryId, uint256 amount);
   event PlayerDeposited(
     uint256 indexed lotteryId,
     address indexed player,
@@ -129,7 +130,7 @@ contract CompoundPrizeLottery is
     subscriptionId = _subscriptionId;
     keyHash = _keyHash;
 
-    state = State.CLOSED;
+    changeState(State.CLOSED);
 
     _initialize();
   }
@@ -153,11 +154,14 @@ contract CompoundPrizeLottery is
         _supplyToCompound(address(token), address(cToken), reserve) == 0,
         "PrizeLottery: SUPPLY_FAILED"
       );
+
+      emit ReserveSupplied(lotteryId.current(), reserve);
     }
 
     latestLotteryTimestamp = block.timestamp;
     lotteryId.increment();
-    state = State.OPEN;
+
+    changeState(State.OPEN);
 
     emit LotteryStarted(
       lotteryId.current(),
@@ -335,7 +339,7 @@ contract CompoundPrizeLottery is
 
     require(upkeepNeeded, "PrizeLottery: UPKEEP_NOT_NEEDED");
 
-    state = State.AWARDING_WINNER;
+    changeState(State.AWARDING_WINNER);
 
     requestRandomWords();
   }
@@ -359,7 +363,11 @@ contract CompoundPrizeLottery is
    * @notice Utility function that allows the owner to change the lottery state.
    * @param _state The new state
    */
-  function changeState(State _state) external onlyOwner {
+  function changeState(State _state) public {
+    require(
+      owner() == _msgSender() || controller() == _msgSender(),
+      "PrizeLottery: CALLER_NOT_OWNER_OR_CONTROLLER"
+    );
     if (_state == state) return;
     State oldState = state;
     state = _state;
