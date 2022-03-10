@@ -44,7 +44,7 @@ contract CompoundPrizeLottery is
   }
 
   /* Lottery parameters */
-  uint256 public constant DRAWING_PERIOD = 10 days;
+  uint256 public constant DRAWING_PERIOD = 5 minutes; // @TODO Change to 10 days
   uint256 public constant MINIMUM_DEPOSIT = 1e18; // 1
 
   /* Lottery parameters */
@@ -130,8 +130,6 @@ contract CompoundPrizeLottery is
     subscriptionId = _subscriptionId;
     keyHash = _keyHash;
 
-    changeState(State.CLOSED);
-
     _initialize();
   }
 
@@ -141,12 +139,6 @@ contract CompoundPrizeLottery is
    * prize pool.
    */
   function _initialize() internal {
-    require(
-      keccak256(abi.encodePacked(state)) !=
-        keccak256(abi.encodePacked(State.OPEN)),
-      "PrizeLottery: REQUIRE_STATE_NOT_OPEN"
-    );
-
     uint256 reserve = token.balanceOf(address(this));
 
     if (reserve > 0) {
@@ -275,7 +267,6 @@ contract CompoundPrizeLottery is
     uint256[] memory _randomWords
   ) internal override {
     _draw(_randomWords[0]);
-    _initialize();
   }
 
   /**
@@ -345,21 +336,6 @@ contract CompoundPrizeLottery is
   }
 
   /**
-   * @notice Utility function used to retrieve the current prize pool.
-   * @return The current prize pool
-   */
-  function prizePool() public returns (uint256) {
-    uint256 depositedAmount = ticket.totalSupply();
-    uint256 totalAmount = balanceOfUnderlyingCompound(address(cToken));
-
-    uint256 prize = (totalAmount < depositedAmount)
-      ? type(uint256).min
-      : (totalAmount - depositedAmount);
-
-    return prize;
-  }
-
-  /**
    * @notice Utility function that allows the owner to change the lottery state.
    * @param _state The new state
    */
@@ -398,5 +374,57 @@ contract CompoundPrizeLottery is
   function isLotteryEmpty() public view returns (bool) {
     if (ticket.totalSupply() > 0) return false;
     return true;
+  }
+
+  /**
+   * @notice Utility function that checks if a new lottery run is ready
+   * to be initialized. That happens if:
+   * 1. Contract has just been deployed (lotteryId = 0 and state = CLOSED)
+   * 2. The winner has been awarded
+   * @return True if it's ready to be initialized, otherwise False
+   
+  function isReadyToInitialize() public view returns (bool) {
+    if (
+      lotteryId.current() == 0 &&
+      keccak256(abi.encodePacked(state)) ==
+      keccak256(abi.encodePacked(State.CLOSED))
+    ) return true;
+    if (
+      keccak256(abi.encodePacked(state)) ==
+      keccak256(abi.encodePacked(State.WINNER_AWARDED))
+    ) return true;
+    return false;
+  }
+  */
+
+  /**
+   * @notice Utility function used to retrieve the current prize pool.
+   * @return The current prize pool
+   */
+  function prizePool() public returns (uint256) {
+    uint256 depositedAmount = ticket.totalSupply();
+    uint256 totalAmount = balanceOfUnderlyingCompound(address(cToken));
+
+    uint256 prize = (totalAmount < depositedAmount)
+      ? type(uint256).min
+      : (totalAmount - depositedAmount);
+
+    return prize;
+  }
+
+  // ===========================================================================
+  //                            Getter functions
+  // ===========================================================================
+
+  function getTicket() external view returns (address) {
+    return address(ticket);
+  }
+
+  function getToken() external view returns (address) {
+    return address(token);
+  }
+
+  function getCtoken() external view returns (address) {
+    return address(cToken);
   }
 }
