@@ -1,25 +1,10 @@
 //SPDX-License-Identifier: MIT
 
-/*                                                                
-_________   _...._              .--.                __.....__      
-\        |.'      '-.           |__|            .-''         '.    
- \        .'```'.    '. .-,.--. .--.           /     .-''"'-.  `.  
-  \      |       \     \|  .-. ||  |          /     /________\   \ 
-   |     |        |    || |  | ||  |.--------.|                  | 
-   |      \      /    . | |  | ||  ||____    |\    .-------------' 
-   |     |\`'-.-'   .'  | |  '- |  |    /   /  \    '-.____...---. 
-   |     | '-....-'`    | |     |__|  .'   /    `.             .'  
-  .'     '.             | |          /    /___    `''-...... -'    
-'-----------'           |_|         |         |                    
-                                    |_________|                    
-*/
-
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@chainlink/contracts/src/v0.8/interfaces/KeeperCompatibleInterface.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/LinkTokenInterface.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
 import "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
@@ -32,19 +17,19 @@ contract CompoundPrizeLottery is
   Controller,
   Ownable,
   CompoundYieldSourceInteractor,
-  KeeperCompatibleInterface,
   VRFConsumerBaseV2
 {
   using Counters for Counters.Counter;
 
   enum State {
     OPEN,
+    CLOSED,
     AWARDING_WINNER,
-    CLOSED
+    RANDOMNESS_FULFILLED
   }
 
   /* Lottery parameters */
-  uint256 public constant DRAWING_PERIOD = 5 minutes; // @TODO Change to 10 days
+  uint256 public constant DRAWING_PERIOD = 10 days;
   uint256 public constant MINIMUM_DEPOSIT = 1e18; // 1
 
   /* Lottery parameters */
@@ -67,6 +52,7 @@ contract CompoundPrizeLottery is
   VRFCoordinatorV2Interface internal immutable vrfCoordinator;
   uint64 internal immutable subscriptionId;
   bytes32 internal immutable keyHash;
+  uint256 internal randomNumber;
 
   /* Events */
   event LotteryStarted(
@@ -81,15 +67,20 @@ contract CompoundPrizeLottery is
     address indexed player,
     uint256 amount
   );
-  event UnderlyingAssetRedeemed(
+  event PlayerRedeemed(
     uint256 indexed lotteryId,
     address indexed player,
     uint256 amount
   );
-  event LotteryWinnerRequested(
+  event RandomNumberRequested(
     uint256 indexed lotteryId,
     uint64 subscriptionId,
     uint256 requestId
+  );
+  event RandomNumberReceived(
+    uint256 indexed lotteryId,
+    uint64 subscriptionId,
+    uint256 randomNumber
   );
   event LotteryWinnerAwarded(
     uint256 indexed lotteryId,
@@ -130,9 +121,9 @@ contract CompoundPrizeLottery is
     subscriptionId = _subscriptionId;
     keyHash = _keyHash;
 
-    changeState(State.CLOSED);
+    _changeState(State.CLOSED);
 
-    initialize();
+    _initialize();
   }
 
   /**
@@ -140,13 +131,7 @@ contract CompoundPrizeLottery is
    * reserve available into the yield protocol in order to enlarge the
    * prize pool.
    */
-  function initialize() public {
-    require(
-      keccak256(abi.encodePacked(state)) ==
-        keccak256(abi.encodePacked(State.CLOSED)),
-      "PrizeLottery: REQUIRE_STATE_CLOSED"
-    );
-
+  function _initialize() internal {
     uint256 reserve = token.balanceOf(address(this));
 
     if (reserve > 0) {
@@ -161,7 +146,7 @@ contract CompoundPrizeLottery is
     latestLotteryTimestamp = block.timestamp;
     lotteryId.increment();
 
-    changeState(State.OPEN);
+    _changeState(State.OPEN);
 
     emit LotteryStarted(
       lotteryId.current(),
@@ -181,12 +166,7 @@ contract CompoundPrizeLottery is
    * on that moment
    */
   function deposit(uint256 _amount) external returns (bytes32, uint256) {
-    require(
-      keccak256(abi.encodePacked(state)) ==
-        keccak256(abi.encodePacked(State.OPEN)),
-      "PrizeLottery: REQUIRE_STATE_OPEN"
-    );
-
+    require(State.OPEN == state, "PrizeLottery: REQUIRE_STATE_OPEN");
     require(
       _amount >= MINIMUM_DEPOSIT,
       "PrizeLottery: INSUFFICIENT_DEPOSIT_AMOUNT"
@@ -221,13 +201,6 @@ contract CompoundPrizeLottery is
       _tokenAmount <= ticket.stakeOf(_msgSender()),
       "PrizeLottery: INSUFFICIENT_FUNDS_TO_REDEEM"
     );
-
-    require(
-      keccak256(abi.encodePacked(state)) !=
-        keccak256(abi.encodePacked(State.AWARDING_WINNER)),
-      "PrizeLottery: REQUIRE_STATE_NOT_AWARDING_WINNER"
-    );
-
     require(
       _redeemUnderlyingFromCompound(address(cToken), _tokenAmount) == 0,
       "PrizeLottery: REDEEM_FAILED"
@@ -236,46 +209,9 @@ contract CompoundPrizeLottery is
     ticket.controlledBurn(_msgSender(), _tokenAmount);
     token.transfer(_msgSender(), _tokenAmount);
 
-    emit UnderlyingAssetRedeemed(
-      lotteryId.current(),
-      _msgSender(),
-      _tokenAmount
-    );
+    emit PlayerRedeemed(lotteryId.current(), _msgSender(), _tokenAmount);
 
     return (ticket.stakeOf(_msgSender()));
-  }
-
-  /**
-   * @notice Function that calls the Chainlink VRF to get a random number.
-   */
-  function requestRandomWords() internal {
-    require(
-      keccak256(abi.encodePacked(state)) ==
-        keccak256(abi.encodePacked(State.AWARDING_WINNER)),
-      "PrizeLottery: REQUIRE_STATE_AWARDING_WINNER"
-    );
-
-    uint256 requestId = vrfCoordinator.requestRandomWords(
-      keyHash,
-      subscriptionId,
-      REQUEST_CONFIRMATIONS,
-      CALLBACK_GAS_LIMIT,
-      NUM_WORDS
-    );
-
-    emit LotteryWinnerRequested(lotteryId.current(), subscriptionId, requestId);
-  }
-
-  /**
-   * @notice Function that Chainlink VRF node calls when a random number is generated.
-   * @param _randomWords Array containing `NUM_WORDS` random generated numbers
-   */
-  function fulfillRandomWords(
-    uint256, /* requestId */
-    uint256[] memory _randomWords
-  ) internal override {
-    _draw(_randomWords[0]);
-    //_initialize(); @TODO Resolve high gas usage that makes the transaction fail
   }
 
   /**
@@ -292,7 +228,7 @@ contract CompoundPrizeLottery is
     uint256 prize = prizePool();
     ticket.controlledMint(pickedWinner, prize);
 
-    changeState(State.CLOSED);
+    _changeState(State.CLOSED);
 
     emit LotteryWinnerAwarded(
       lotteryId.current(),
@@ -303,30 +239,20 @@ contract CompoundPrizeLottery is
   }
 
   /**
-   * @notice This is the function that the Chainlink Keeper nodes call
-   * they look for `upkeepNeeded` to return True.
+   * @notice This is the function that checks if the request of a random number
+   * can start.
    * the following should be true for this to return true:
    * 1. The time interval has passed between lottery runs
    * 2. The lottery is open
    * 3. The lottery is not empty
-   * @return upkeepNeeded True if the lottery is ready to draw, otherwise False
+   * @return True if the lottery is ready to draw, otherwise False
    */
-  function checkUpkeep(
-    bytes memory /* checkData */
-  )
-    public
-    view
-    override
-    returns (
-      bool upkeepNeeded,
-      bytes memory /* performData */
-    )
-  {
+  function checkUpkeep() public view returns (bool) {
     bool isOpen = State.OPEN == state;
     bool timePassed = ((block.timestamp - latestLotteryTimestamp) >=
       DRAWING_PERIOD);
 
-    upkeepNeeded = (timePassed && isOpen && !isLotteryEmpty());
+    return timePassed && isOpen && !isLotteryEmpty();
   }
 
   /**
@@ -334,16 +260,33 @@ contract CompoundPrizeLottery is
    * it starts the awarding winner process and kicks off a Chainlink VRF
    * call to get a random winner.
    */
-  function performUpkeep(
-    bytes calldata /* performData */
-  ) external override {
-    (bool upkeepNeeded, ) = checkUpkeep("0x");
+  function performUpkeep() external {
+    require(checkUpkeep(), "PrizeLottery: UPKEEP_NOT_NEEDED");
 
-    require(upkeepNeeded, "PrizeLottery: UPKEEP_NOT_NEEDED");
+    _changeState(State.AWARDING_WINNER);
 
-    changeState(State.AWARDING_WINNER);
+    uint256 requestId = vrfCoordinator.requestRandomWords(
+      keyHash,
+      subscriptionId,
+      REQUEST_CONFIRMATIONS,
+      CALLBACK_GAS_LIMIT,
+      NUM_WORDS
+    );
 
-    requestRandomWords();
+    emit RandomNumberRequested(lotteryId.current(), subscriptionId, requestId);
+  }
+
+  /**
+   * @notice Function that Chainlink VRF node calls when a random number is generated.
+   * @param randomWords Array containing `NUM_WORDS` random generated numbers
+   */
+  function fulfillRandomWords(
+    uint256, /* requestId */
+    uint256[] memory randomWords
+  ) internal override {
+    _changeState(State.RANDOMNESS_FULFILLED);
+    _draw(randomWords[0]);
+    _initialize();
   }
 
   /**
@@ -352,7 +295,7 @@ contract CompoundPrizeLottery is
    */
   function prizePool() public returns (uint256) {
     uint256 depositedAmount = ticket.totalSupply();
-    uint256 totalAmount = balanceOfUnderlyingCompound(address(cToken));
+    uint256 totalAmount = _balanceOfUnderlyingCompound(address(cToken));
 
     uint256 prize = (totalAmount < depositedAmount)
       ? type(uint256).min
@@ -362,14 +305,22 @@ contract CompoundPrizeLottery is
   }
 
   /**
+   * @notice Utility function that changes the lottery state.
+   * @param _state The new state
+   */
+  function _changeState(State _state) internal {
+    if (_state == state) return;
+    State oldState = state;
+    state = _state;
+
+    emit StateChanged(lotteryId.current(), oldState, state);
+  }
+
+  /**
    * @notice Utility function that allows the owner to change the lottery state.
    * @param _state The new state
    */
-  function changeState(State _state) public {
-    require(
-      owner() == _msgSender() || controller() == _msgSender(),
-      "PrizeLottery: CALLER_NOT_OWNER_OR_CONTROLLER"
-    );
+  function changeState(State _state) external onlyOwner {
     if (_state == state) return;
     State oldState = state;
     state = _state;
@@ -400,5 +351,44 @@ contract CompoundPrizeLottery is
   function isLotteryEmpty() public view returns (bool) {
     if (ticket.totalSupply() > 0) return false;
     return true;
+  }
+
+  /**
+   * @notice The user's underlying balance, representing their
+   * assets in the protocol, is equal to the user's cToken balance
+   * multiplied by the Exchange Rate.
+   * @return The amount of underlying currently owned by this contract.
+   */
+  function balanceOfUnderlyingCompound() public returns (uint256) {
+    return _balanceOfUnderlyingCompound(address(cToken));
+  }
+
+  /**
+   * @notice Get the current supply rate per block
+   * @return The current supply rate as an unsigned integer, scaled by 1e18.
+   */
+  function supplyRatePerBlockCompound() public returns (uint256) {
+    return _supplyRatePerBlockCompound(address(cToken));
+  }
+
+  /**
+   * @notice Get the current exchange rate
+   * @return The current exchange rate as an unsigned integer,
+   * scaled by 1 * 10^(18 - 8 + Underlying Token Decimals)
+   */
+  function exchangeRateCompound() public returns (uint256) {
+    return _exchangeRateCompound(address(cToken));
+  }
+
+  function getToken() public view returns (address) {
+    return address(token);
+  }
+
+  function getCtoken() public view returns (address) {
+    return address(cToken);
+  }
+
+  function getTicket() public view returns (address) {
+    return address(ticket);
   }
 }

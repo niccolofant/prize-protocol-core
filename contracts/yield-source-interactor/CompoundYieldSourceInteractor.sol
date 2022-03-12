@@ -90,8 +90,8 @@ contract CompoundYieldSourceInteractor is Controller {
    * @param _cToken The address of the cToken
    * @return The amount of underlying currently owned by this contract.
    */
-  function balanceOfUnderlyingCompound(address _cToken)
-    public
+  function _balanceOfUnderlyingCompound(address _cToken)
+    internal
     returns (uint256)
   {
     ICToken cToken = ICToken(_cToken);
@@ -103,8 +103,8 @@ contract CompoundYieldSourceInteractor is Controller {
    * @param _cToken The address of the cToken
    * @return The current supply rate as an unsigned integer, scaled by 1e18.
    */
-  function supplyRatePerBlockCompound(address _cToken)
-    public
+  function _supplyRatePerBlockCompound(address _cToken)
+    internal
     returns (uint256)
   {
     ICToken cToken = ICToken(_cToken);
@@ -117,7 +117,7 @@ contract CompoundYieldSourceInteractor is Controller {
    * @return The current exchange rate as an unsigned integer,
    * scaled by 1 * 10^(18 - 8 + Underlying Token Decimals)
    */
-  function exchangeRateCompound(address _cToken) public returns (uint256) {
+  function _exchangeRateCompound(address _cToken) internal returns (uint256) {
     ICToken cToken = ICToken(_cToken);
     return cToken.exchangeRateCurrent();
   }

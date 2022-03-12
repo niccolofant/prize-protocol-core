@@ -241,7 +241,7 @@ contract CompoundPrizeLotteryTest is
    */
   function prizePool() public returns (uint256) {
     uint256 depositedAmount = ticket.totalSupply();
-    uint256 totalAmount = balanceOfUnderlyingCompound(address(cToken));
+    uint256 totalAmount = _balanceOfUnderlyingCompound(address(cToken));
 
     uint256 prize = (totalAmount < depositedAmount)
       ? type(uint256).min

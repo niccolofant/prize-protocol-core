@@ -1,22 +1,8 @@
 //SPDX-License-Identifier: MIT
 
-/*                                                                
-_________   _...._              .--.                __.....__      
-\        |.'      '-.           |__|            .-''         '.    
- \        .'```'.    '. .-,.--. .--.           /     .-''"'-.  `.  
-  \      |       \     \|  .-. ||  |          /     /________\   \ 
-   |     |        |    || |  | ||  |.--------.|                  | 
-   |      \      /    . | |  | ||  ||____    |\    .-------------' 
-   |     |\`'-.-'   .'  | |  '- |  |    /   /  \    '-.____...---. 
-   |     | '-....-'`    | |     |__|  .'   /    `.             .'  
-  .'     '.             | |          /    /___    `''-...... -'    
-'-----------'           |_|         |         |                    
-                                    |_________|                    
-*/
-
 pragma solidity ^0.8.0;
 
-import "sortition-sum-tree-factory/contracts/SortitionSumTreeFactory.sol";
+import "../sortition-sum-tree-factory/SortitionSumTreeFactory.sol";
 import "./ControlledToken.sol";
 import "../interfaces/ITicket.sol";
 
