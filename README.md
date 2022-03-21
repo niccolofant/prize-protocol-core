@@ -1,5 +1,5 @@
 [![Prize-Lottery-green-dark-2.png](https://i.postimg.cc/rFMHnnPW/Prize-Lottery-green-dark-2.png)](https://postimg.cc/jC3vCXKd)
-# 🏆 Prize Protocol v1
+# 🏆 Prize Protocol Core
 Prize Protocol is a protocol for no-loss prize games on Ethereum. Modeled on the well established concept of "no loss lotteries" and "prize savings accounts" the protocol offers a chance to win prizes in exchange for depositing funds. Even if you don't win, you keep all your deposited funds. Prizes are made up of the interest that accrues on all users deposits.
  
 Each lottery run lasts 10 days and you can join by simply deposit as little as 1 USDT ($1).
