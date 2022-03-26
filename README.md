@@ -1,4 +1,4 @@
-[![prizeprotocol.png](https://svgshare.com/i/fc8.svg)](https://svgshare.com/i/fc8.svg)
+[![logo-text-black-transparent.png](https://i.postimg.cc/1Xg8kTVK/logo-text-black-transparent.png)](https://postimg.cc/tnjRPB51)
 # 🏆 Prize Protocol Core
 Prize Protocol is a protocol for no-loss prize games on Ethereum. Modeled on the well established concept of "no loss lotteries" and "prize savings accounts" the protocol offers a chance to win prizes in exchange for depositing funds. Even if you don't win, you keep all your deposited funds. Prizes are made up of the interest that accrues on all users deposits.
  
